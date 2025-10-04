@@ -52,6 +52,7 @@ sealed class TabNode {
                     MusicType.ARTISTS -> R.drawable.ic_artist_bitmap_24
                     MusicType.GENRES -> R.drawable.ic_genre_bitmap_24
                     MusicType.PLAYLISTS -> R.drawable.ic_playlist_bitmap_24
+                    MusicType.DIALOG_ALBUMS -> R.drawable.ic_album_bitmap_24 // 暂时使用专辑图标
                 }
 
         override val nameRes = type.nameRes

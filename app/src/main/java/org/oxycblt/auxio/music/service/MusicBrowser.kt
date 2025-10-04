@@ -202,6 +202,7 @@ private constructor(
                     MusicType.ARTISTS -> homeGenerator.artists().map { it.toMediaItem(context) }
                     MusicType.GENRES -> homeGenerator.genres().map { it.toMediaItem(context) }
                     MusicType.PLAYLISTS -> homeGenerator.playlists().map { it.toMediaItem(context) }
+                    MusicType.DIALOG_ALBUMS -> emptyList() // 暂时返回空列表
                 }
         }
 

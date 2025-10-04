@@ -234,6 +234,7 @@ class HomeFragment :
                         MusicType.ARTISTS -> HomeFragmentDirections.sortArtists()
                         MusicType.GENRES -> HomeFragmentDirections.sortGenres()
                         MusicType.PLAYLISTS -> HomeFragmentDirections.sortPlaylists()
+                        MusicType.DIALOG_ALBUMS -> HomeFragmentDirections.sortAlbums() // 暂时使用专辑排序
                     }
                 findNavController().navigateSafe(directions)
                 true
@@ -283,6 +284,7 @@ class HomeFragment :
                 MusicType.ARTISTS -> R.id.home_artist_recycler
                 MusicType.GENRES -> R.id.home_genre_recycler
                 MusicType.PLAYLISTS -> R.id.home_playlist_recycler
+                MusicType.DIALOG_ALBUMS -> R.id.dialog_albums_recycler
             }
     }
 
@@ -502,6 +504,7 @@ class HomeFragment :
                 MusicType.ARTISTS -> ArtistListFragment()
                 MusicType.GENRES -> GenreListFragment()
                 MusicType.PLAYLISTS -> PlaylistListFragment()
+                MusicType.DIALOG_ALBUMS -> org.oxycblt.auxio.dialogalbums.DialogAlbumsFragment()
             }
     }
 

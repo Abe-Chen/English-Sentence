@@ -10,6 +10,10 @@
         android:label="home_fragment"
         tools:layout="@layout/fragment_home">
         <action
+            android:id="@+id/show_dialog_albums"
+            app:destination="@id/dialog_albums_fragment" />
+    
+        <action
             android:id="@+id/search"
             app:destination="@id/search_fragment" />
         <action
@@ -573,4 +577,10 @@
         android:name="org.oxycblt.auxio.music.locations.LocationsDialog"
         android:label="music_locations_dialog"
         tools:layout="@layout/dialog_music_locations" />
+        
+    <fragment
+        android:id="@+id/dialog_albums_fragment"
+        android:name="org.oxycblt.auxio.dialogalbums.DialogAlbumsFragment"
+        android:label="dialog_albums_fragment"
+        tools:layout="@layout/fragment_dialog_albums" />
 </navigation>

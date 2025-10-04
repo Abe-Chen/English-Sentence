@@ -80,6 +80,8 @@
 
     <string name="lbl_genre">Genre</string>
     <string name="lbl_genres">Genres</string>
+    
+    <string name="lbl_dialog_albums">台词专辑</string>
 
     <string name="lbl_playlist">Playlist</string>
     <string name="lbl_playlists">Playlists</string>

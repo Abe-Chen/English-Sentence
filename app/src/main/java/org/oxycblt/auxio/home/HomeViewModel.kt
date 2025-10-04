@@ -202,6 +202,9 @@ constructor(
                 _playlistInstructions.put(instructions)
                 _playlistList.value = homeGenerator.playlists()
             }
+            MusicType.DIALOG_ALBUMS -> {
+                // 暂时不做任何操作，因为我们目前只显示空列表
+            }
         }
     }
 
