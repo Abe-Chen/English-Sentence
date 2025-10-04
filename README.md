@@ -1,6 +1,6 @@
 <p align="center"><img src="fastlane/metadata/android/en-US/images/icon.png" width="150"></p>
-<h1 align="center"><b>Auxio</b></h1>
-<h4 align="center">A simple, rational music player for android.</h4>
+<h1 align="center"><b>Sentence</b></h1>
+<h4 align="center">一款简洁、实用的音乐播放器，支持台词专辑功能。</h4>
 <p align="center">
     <a href="https://github.com/oxygencobalt/Auxio/releases/tag/v4.0.9">
         <img alt="Latest Version" src="https://img.shields.io/static/v1?label=tag&message=v4.0.9&color=64B5F6&style=flat">
