@@ -19,6 +19,8 @@
 package org.oxycblt.auxio.dialogimport
 
 import android.content.ContentResolver
+import android.content.ContentValues
+import android.content.Context
 import android.content.Context
 import android.content.ContentValues
 import android.media.MediaScannerConnection
@@ -37,6 +39,10 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlin.text.Charsets
+import org.json.JSONArray
+import org.json.JSONObject
+import org.oxycblt.auxio.R
 import org.json.JSONArray
 import org.json.JSONObject
 import kotlin.text.Charsets
@@ -80,12 +86,16 @@ constructor(
                             .getDisplayName(request.videoUri)
                             ?.substringBeforeLast('.')
                             ?.takeIf { it.isNotBlank() }
+                        ?: throw DialogImportException(
+                            context.getString(R.string.error_dialog_import_album_title),
+                        )
                         ?: throw DialogImportException("Unable to determine album title.")
 
                 val subtitleFile =
                     providedSubtitle
                         ?: extractEmbeddedSubtitle(tempVideo).also { extractedSubtitle = it }
                         ?: throw DialogImportException(
+                            context.getString(R.string.error_dialog_import_missing_subtitle),
                             "The selected video does not contain embedded subtitles and no subtitle file was provided.",
                         )
 
@@ -94,6 +104,9 @@ constructor(
                 val parsedCues = subtitleFile.inputStream().use(parser::parse)
                 val cues = parsedCues.filter { cue -> cue.endMs > cue.startMs }
                 if (cues.isEmpty()) {
+                    throw DialogImportException(
+                        context.getString(R.string.error_dialog_import_empty_subtitle),
+                    )
                     throw DialogImportException("Subtitle file did not contain any cues.")
                 }
 
@@ -157,6 +170,9 @@ constructor(
         val dialogRoot = File(base, "EnglishDialog")
         if (!dialogRoot.exists() && !dialogRoot.mkdirs()) {
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+                throw DialogImportException(
+                    context.getString(R.string.error_dialog_import_create_root),
+                )
                 throw DialogImportException("Unable to create EnglishDialog music directory.")
             }
         }
@@ -164,6 +180,9 @@ constructor(
         val albumDirectory = File(dialogRoot, sanitizedAlbum)
         if (!albumDirectory.exists() && !albumDirectory.mkdirs()) {
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+                throw DialogImportException(
+                    context.getString(R.string.error_dialog_import_create_album_dir),
+                )
                 throw DialogImportException("Unable to create album destination directory.")
             }
         }
@@ -267,6 +286,15 @@ constructor(
                     "track=${index + 1}",
                     tempFile.absolutePath,
                 )
+            if (!ReturnCode.isSuccess(session.returnCode)) {
+                tempFile.delete()
+                L.e(
+                    "FFmpeg failed while creating dialog track %d: %s",
+                    index + 1,
+                    session.failStackTrace ?: "unknown",
+                )
+                throw DialogImportException(
+                    context.getString(R.string.error_dialog_import_track_failed, index + 1),
 
             val session = FFmpegKit.execute(command)
             if (!ReturnCode.isSuccess(session.returnCode)) {
@@ -303,12 +331,23 @@ constructor(
                         ) ?: run {
                             tempFile.delete()
                             throw DialogImportException(
+                                context.getString(
+                                    R.string.error_dialog_import_storage_reservation,
+                                    index + 1,
+                                ),
                                 "Failed to reserve storage for dialog track ${index + 1}.",
                             )
                         }
                     try {
                         resolver.openOutputStream(uri, "w")?.use { output ->
                             tempFile.inputStream().use { input -> input.copyTo(output) }
+                        }
+                            ?: throw DialogImportException(
+                                context.getString(
+                                    R.string.error_dialog_import_output_stream,
+                                    index + 1,
+                                ),
+                            )
                         } ?: throw DialogImportException(
                             "Unable to open output stream for dialog track ${index + 1}.",
                         )
@@ -323,6 +362,10 @@ constructor(
                         resolver.delete(uri, null, null)
                         tempFile.delete()
                         throw DialogImportException(
+                            context.getString(
+                                R.string.error_dialog_import_save_track,
+                                index + 1,
+                            ),
                             buildString {
                                 append("Failed to save dialog track ${index + 1}.")
                                 e.message?.let { message ->
@@ -340,6 +383,10 @@ constructor(
                     } catch (e: Exception) {
                         tempFile.delete()
                         throw DialogImportException(
+                            context.getString(
+                                R.string.error_dialog_import_save_track,
+                                index + 1,
+                            ),
                             buildString {
                                 append("Failed to save dialog track ${index + 1}.")
                                 e.message?.let { message ->
@@ -391,6 +438,25 @@ constructor(
                     put(MediaStore.MediaColumns.RELATIVE_PATH, destination.relativePath)
                     put(MediaStore.MediaColumns.IS_PENDING, 1)
                 }
+                val uri =
+                    resolver.insert(
+                        MediaStore.Files.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY),
+                        values,
+                    )
+                        ?: throw DialogImportException(
+                            context.getString(
+                                R.string.error_dialog_import_manifest_media_store,
+                            ),
+                        )
+            try {
+                resolver.openOutputStream(uri, "w")?.use { output ->
+                    output.write(jsonString.toByteArray(Charsets.UTF_8))
+                }
+                    ?: throw DialogImportException(
+                        context.getString(
+                            R.string.error_dialog_import_manifest_output_stream,
+                        ),
+                    )
             val uri =
                 resolver.insert(
                     MediaStore.Files.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY),
@@ -409,6 +475,10 @@ constructor(
                 )
             } catch (e: Exception) {
                 resolver.delete(uri, null, null)
+                throw DialogImportException(
+                    context.getString(R.string.error_dialog_import_manifest_write),
+                    e,
+                )
                 throw DialogImportException("Failed to write album manifest.", e)
             }
         } else {
@@ -431,6 +501,10 @@ constructor(
             tempFile.outputStream().use { output ->
                 input.copyTo(output)
             }
+        }
+            ?: throw DialogImportException(
+                context.getString(R.string.error_dialog_import_open_source, uri),
+            )
         } ?: throw DialogImportException("Unable to open source uri: $uri")
         return tempFile
     }
