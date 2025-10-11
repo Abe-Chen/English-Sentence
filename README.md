@@ -1,6 +1,6 @@
 <p align="center"><img src="fastlane/metadata/android/en-US/images/icon.png" width="150"></p>
-<h1 align="center"><b>Sentence</b></h1>
-<h4 align="center">一款简洁、实用的音乐播放器，支持台词专辑功能。</h4>
+<h1 align="center"><b>English Sentence</b></h1>
+<h4 align="center">将电影对话转化为“专辑 → 台词 → 歌词”的英语学习体验。</h4>
 <p align="center">
     <a href="https://github.com/oxygencobalt/Auxio/releases/tag/v4.0.9">
         <img alt="Latest Version" src="https://img.shields.io/static/v1?label=tag&message=v4.0.9&color=64B5F6&style=flat">
@@ -26,7 +26,13 @@
 
 ## About
 
-Auxio is a local music player with a fast, reliable UI/UX without the many useless features present in other music players. Built off of modern media playback libraries, Auxio has superior library support and listening quality compared to other apps that use outdated android functionality. In short, **It plays music.**
+English Sentence 将 Auxio 的音乐播放架构延伸至英语学习场景。用户可以导入本地电影视频，应用会自动提取台词音频与字幕，生成一个学习专辑：
+
+- 每部电影 = 一个专辑
+- 每句台词 = 一首“歌曲”
+- 台词文本 = 歌词
+
+结合倍速播放、单句循环和后台播放能力，用户可以在熟悉的听歌流程中完成“听、读、跟读”练习。欲了解完整的产品定位与功能规划，请查看 [English Sentence 产品需求文档](docs/EnglishSentence_PRD.md)。
 
 **The default branch is the development version of the repository. For a stable version, see the master branch.**
 
@@ -44,33 +50,19 @@ Auxio is a local music player with a fast, reliable UI/UX without the many usele
 
 ## Features
 
-- Playback based on [Media3 ExoPlayer](https://developer.android.com/guide/topics/media/exoplayer)
-- Snappy UI derived from the latest Material Design guidelines
-- Opinionated UX that prioritizes ease of use over edge cases
-- Customizable behavior
-- Support for disc numbers, multiple artists, release types,
-precise/original dates, sort tags, and more
-- Advanced artist system that unifies artists and album artists
-- SD Card-aware folder management
-- Reliable playlisting functionality
-- Playback state persistence
-- Android auto support
-- Automatic gapless playback
-- Full ReplayGain support (On MP3, FLAC, OGG, OPUS, and MP4 files)
-- External equalizer support (ex. Wavelet)
-- Edge-to-edge
-- Embedded covers support
-- Search functionality
-- Headset autoplay
-- Stylish widgets that automatically adapt to their size
-- Completely private and offline
-- No rounded album covers (if you want them)
+- 📁 **导入电影视频**：支持 MP4/MKV，自动提取音轨及内嵌字幕，或手动匹配 `.srt` 文件。
+- ✂️ **台词切分**：按字幕时间轴生成句级音频片段并写入专辑、曲目元数据。
+- 🎧 **学习专辑**：电影被整理成专辑，台词成为曲目，并以 “Dialog Study” 作为专辑演出者区分。
+- 📜 **同步字幕**：播放时显示完整台词文本，并支持自动滚动与单句循环。
+- 🕒 **倍速与循环**：保留后台播放、通知栏控制，并提供 0.8x~1.5x 的倍速选择。
+- 📚 **媒体库集成**：生成内容存储于 `/Music/EnglishDialog/`，并同步写入系统媒体库与本地数据库。
+- ✅ **离线学习**：全部流程离线完成，无需任何云端服务。
 
 ## Permissions
 
-- Storage (`READ_MEDIA_AUDIO`, `READ_EXTERNAL_STORAGE`) to read and play your music files
-- Services (`FOREGROUND_SERVICE`, `WAKE_LOCK`) to keep the music playing in the background
-- Notifications (`POST_NOTIFICATION`) to indicate ongoing playback and music loading
+- Storage (`READ_MEDIA_AUDIO`, `READ_EXTERNAL_STORAGE`) 用于读取与管理生成的学习音频文件
+- Services (`FOREGROUND_SERVICE`, `WAKE_LOCK`) 确保音频提取与学习播放在前台服务中稳定运行
+- Notifications (`POST_NOTIFICATION`) 用于显示生成任务与持续播放的通知
 
 ## Donate
 

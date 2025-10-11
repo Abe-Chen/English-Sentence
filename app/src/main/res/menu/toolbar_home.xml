@@ -15,6 +15,17 @@
         app:showAsAction="ifRoom" />
 
     <item
+        android:id="@+id/action_show_learning_albums"
+        android:checkable="true"
+        android:title="@string/action_show_learning_albums"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_import_dialog_album"
+        android:title="@string/action_import_dialog_album"
+        app:showAsAction="never" />
+
+    <item
         android:id="@+id/action_settings"
         android:title="@string/set_root_title"
         app:showAsAction="never" />
