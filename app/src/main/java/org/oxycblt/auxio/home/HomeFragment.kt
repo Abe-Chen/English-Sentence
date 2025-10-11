@@ -19,6 +19,8 @@
 package org.oxycblt.auxio.home
 
 import android.annotation.SuppressLint
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.MenuItem
@@ -37,6 +39,7 @@ import androidx.recyclerview.widget.RecyclerView
 import androidx.viewpager2.adapter.FragmentStateAdapter
 import androidx.viewpager2.widget.ViewPager2
 import com.google.android.material.appbar.AppBarLayout
+import com.google.android.material.snackbar.Snackbar
 import com.google.android.material.tabs.TabLayoutMediator
 import com.google.android.material.transition.MaterialSharedAxis
 import dagger.hilt.android.AndroidEntryPoint
@@ -44,6 +47,10 @@ import java.lang.reflect.Field
 import kotlin.math.abs
 import org.oxycblt.auxio.R
 import org.oxycblt.auxio.databinding.FragmentHomeBinding
+import org.oxycblt.auxio.dialogimport.DialogImportProgress
+import org.oxycblt.auxio.dialogimport.DialogImportRequest
+import org.oxycblt.auxio.dialogimport.DialogImportUiState
+import org.oxycblt.auxio.dialogimport.DialogImportViewModel
 import org.oxycblt.auxio.detail.DetailViewModel
 import org.oxycblt.auxio.detail.Show
 import org.oxycblt.auxio.home.list.AlbumListFragment
@@ -88,9 +95,14 @@ class HomeFragment :
     override val playbackModel: PlaybackViewModel by activityViewModels()
     private val homeModel: HomeViewModel by activityViewModels()
     private val detailModel: DetailViewModel by activityViewModels()
+    private val dialogImportModel: DialogImportViewModel by activityViewModels()
     private var storagePermissionLauncher: ActivityResultLauncher<String>? = null
     private var getContentLauncher: ActivityResultLauncher<String>? = null
     private var pendingImportTarget: Playlist? = null
+    private var dialogVideoLauncher: ActivityResultLauncher<Array<String>>? = null
+    private var dialogSubtitleLauncher: ActivityResultLauncher<Array<String>>? = null
+    private var pendingDialogVideoUri: Uri? = null
+    private var dialogImportSnackbar: Snackbar? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -124,6 +136,32 @@ class HomeFragment :
 
                 L.d("Received playlist URI $uri")
                 musicModel.importPlaylist(uri, pendingImportTarget)
+            }
+
+        dialogVideoLauncher =
+            registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+                if (uri == null) {
+                    L.w("No video returned for dialog import")
+                    return@registerForActivityResult
+                }
+
+                takePersistablePermission(uri)
+                pendingDialogVideoUri = uri
+                requireContext().showToast(R.string.msg_dialog_import_choose_subtitle)
+                dialogSubtitleLauncher?.launch(SUBTITLE_MIME_TYPES)
+            }
+
+        dialogSubtitleLauncher =
+            registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+                val videoUri = pendingDialogVideoUri
+                if (videoUri == null) {
+                    L.w("Subtitle selection returned without a video")
+                    return@registerForActivityResult
+                }
+
+                uri?.let(::takePersistablePermission)
+                dialogImportModel.import(DialogImportRequest(videoUri = videoUri, subtitleUri = uri))
+                pendingDialogVideoUri = null
             }
 
         // --- UI SETUP ---
@@ -174,6 +212,7 @@ class HomeFragment :
         collect(homeModel.recreateTabs.flow, ::handleRecreate)
         collect(homeModel.chooseMusicLocations.flow, ::handleChooseFolders)
         collectImmediately(homeModel.currentTabType, ::updateCurrentTab)
+        collectImmediately(homeModel.showDialogAlbumsOnly, ::updateDialogOnlyMenu)
         collect(detailModel.toShow.flow, ::handleShow)
         collect(listModel.menu.flow, ::handleMenu)
         collectImmediately(listModel.selected, ::updateSelection)
@@ -181,6 +220,7 @@ class HomeFragment :
         collect(musicModel.playlistDecision.flow, ::handlePlaylistDecision)
         collectImmediately(musicModel.playlistMessage.flow, ::handlePlaylistMessage)
         collect(playbackModel.playbackDecision.flow, ::handlePlaybackDecision)
+        collect(dialogImportModel.state, ::handleDialogImportState)
     }
 
     override fun onDestroyBinding(binding: FragmentHomeBinding) {
@@ -188,6 +228,10 @@ class HomeFragment :
         storagePermissionLauncher = null
         binding.homeAppbar.removeOnOffsetChangedListener(this)
         binding.homeNormalToolbar.setOnMenuItemClickListener(null)
+        dialogVideoLauncher = null
+        dialogSubtitleLauncher = null
+        dialogImportSnackbar = null
+        pendingDialogVideoUri = null
     }
 
     override fun onOffsetChanged(appBarLayout: AppBarLayout, verticalOffset: Int) {
@@ -234,9 +278,17 @@ class HomeFragment :
                         MusicType.ARTISTS -> HomeFragmentDirections.sortArtists()
                         MusicType.GENRES -> HomeFragmentDirections.sortGenres()
                         MusicType.PLAYLISTS -> HomeFragmentDirections.sortPlaylists()
-                        MusicType.DIALOG_ALBUMS -> HomeFragmentDirections.sortAlbums() // 暂时使用专辑排序
+                        MusicType.DIALOG_ALBUMS -> HomeFragmentDirections.sortAlbums()
                     }
                 findNavController().navigateSafe(directions)
+                true
+            }
+            R.id.action_show_learning_albums -> {
+                homeModel.toggleDialogAlbumFilter()
+                true
+            }
+            R.id.action_import_dialog_album -> {
+                startDialogImport()
                 true
             }
             else -> {
@@ -286,6 +338,35 @@ class HomeFragment :
                 MusicType.PLAYLISTS -> R.id.home_playlist_recycler
                 MusicType.DIALOG_ALBUMS -> R.id.dialog_albums_recycler
             }
+
+        binding.homeNormalToolbar.menu
+            .findItem(R.id.action_show_learning_albums)
+            ?.isVisible = tabType == MusicType.ALBUMS
+        binding.homeNormalToolbar.menu
+            .findItem(R.id.action_import_dialog_album)
+            ?.isVisible = tabType == MusicType.DIALOG_ALBUMS
+    }
+
+    private fun updateDialogOnlyMenu(showOnly: Boolean) {
+        val binding = requireBinding()
+        binding.homeNormalToolbar.menu
+            .findItem(R.id.action_show_learning_albums)
+            ?.isChecked = showOnly
+    }
+
+    private fun takePersistablePermission(uri: Uri) {
+        val resolver = requireContext().contentResolver
+        val flags = Intent.FLAG_GRANT_READ_URI_PERMISSION
+        runCatching { resolver.takePersistableUriPermission(uri, flags) }
+            .onFailure { L.w(it, "Unable to persist URI permission for $uri") }
+    }
+
+    private fun startDialogImport() {
+        if (dialogImportModel.isImporting()) {
+            requireContext().showToast(R.string.msg_dialog_import_in_progress)
+            return
+        }
+        dialogVideoLauncher?.launch(VIDEO_MIME_TYPES)
     }
 
     private fun handleRecreate(recreate: Unit?) {
@@ -396,6 +477,84 @@ class HomeFragment :
         if (message == null) return
         requireContext().showToast(message.stringRes)
         musicModel.playlistMessage.consume()
+    }
+
+    private fun handleDialogImportState(state: DialogImportUiState) {
+        when (state) {
+            DialogImportUiState.Idle -> {
+                dialogImportSnackbar?.dismiss()
+                dialogImportSnackbar = null
+            }
+            is DialogImportUiState.Running -> {
+                val message =
+                    when (val progress = state.progress) {
+                        DialogImportProgress.PreparingSources ->
+                            getString(R.string.msg_dialog_import_preparing)
+                        DialogImportProgress.ReadingSubtitles ->
+                            getString(R.string.msg_dialog_import_reading_subtitles)
+                        is DialogImportProgress.GeneratingAudio ->
+                            getString(
+                                R.string.msg_dialog_import_generating_audio,
+                                progress.total,
+                            )
+                        is DialogImportProgress.GeneratingTrack ->
+                            getString(
+                                R.string.msg_dialog_import_generating_track,
+                                state.processedTracks,
+                                state.totalTracks,
+                            )
+                        DialogImportProgress.WritingAlbumManifest ->
+                            getString(R.string.msg_dialog_import_writing_manifest)
+                        DialogImportProgress.Finalizing ->
+                            getString(R.string.msg_dialog_import_finalizing)
+                    }
+
+                val snackbar =
+                    dialogImportSnackbar
+                        ?: Snackbar.make(
+                                requireBinding().root,
+                                message,
+                                Snackbar.LENGTH_INDEFINITE,
+                            )
+                            .also {
+                                dialogImportSnackbar = it
+                                it.show()
+                            }
+                snackbar.setText(message)
+            }
+            is DialogImportUiState.Success -> {
+                dialogImportSnackbar?.dismiss()
+                dialogImportSnackbar = null
+
+                Snackbar.make(
+                        requireBinding().root,
+                        getString(
+                            R.string.msg_dialog_import_success,
+                            state.result.trackCount,
+                            state.result.albumTitle,
+                        ),
+                        Snackbar.LENGTH_LONG,
+                    )
+                    .show()
+                musicModel.refresh()
+                dialogImportModel.consumeTerminalState()
+            }
+            is DialogImportUiState.Error -> {
+                dialogImportSnackbar?.dismiss()
+                dialogImportSnackbar = null
+
+                val detail =
+                    state.message.takeIf { it.isNotBlank() }
+                        ?: getString(R.string.msg_dialog_import_failed_generic)
+                Snackbar.make(
+                        requireBinding().root,
+                        getString(R.string.msg_dialog_import_failed, detail),
+                        Snackbar.LENGTH_LONG,
+                    )
+                    .show()
+                dialogImportModel.consumeTerminalState()
+            }
+        }
     }
 
     private fun handlePlaybackDecision(decision: PlaybackDecision?) {
@@ -511,5 +670,8 @@ class HomeFragment :
     private companion object {
         val VP_RECYCLER_FIELD: Field by lazyReflectedField(ViewPager2::class, "mRecyclerView")
         val RV_TOUCH_SLOP_FIELD: Field by lazyReflectedField(RecyclerView::class, "mTouchSlop")
+        val VIDEO_MIME_TYPES = arrayOf("video/*")
+        val SUBTITLE_MIME_TYPES =
+            arrayOf("application/x-subrip", "text/plain", "text/srt")
     }
 }

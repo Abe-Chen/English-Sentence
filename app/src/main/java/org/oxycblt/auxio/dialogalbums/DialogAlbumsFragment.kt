@@ -18,38 +18,144 @@
 package org.oxycblt.auxio.dialogalbums
 
 import android.os.Bundle
+import android.text.format.DateUtils
 import android.view.LayoutInflater
-import android.view.View
 import android.view.ViewGroup
-import androidx.fragment.app.Fragment
+import androidx.core.view.isVisible
+import androidx.fragment.app.activityViewModels
+import dagger.hilt.android.AndroidEntryPoint
+import java.util.Formatter
+import org.oxycblt.auxio.R
 import org.oxycblt.auxio.databinding.FragmentDialogAlbumsBinding
+import org.oxycblt.auxio.detail.DetailViewModel
+import org.oxycblt.auxio.home.HomeViewModel
+import org.oxycblt.auxio.list.ListFragment
+import org.oxycblt.auxio.list.ListViewModel
+import org.oxycblt.auxio.list.SelectableListListener
+import org.oxycblt.auxio.list.adapter.SelectionIndicatorAdapter
+import org.oxycblt.auxio.list.recycler.AlbumViewHolder
+import org.oxycblt.auxio.list.recycler.FastScrollRecyclerView
+import org.oxycblt.auxio.list.sort.Sort
+import org.oxycblt.auxio.home.list.thumb
+import org.oxycblt.auxio.music.MusicViewModel
+import org.oxycblt.auxio.music.resolve
+import org.oxycblt.auxio.playback.PlaybackViewModel
+import org.oxycblt.auxio.playback.formatDurationMs
+import org.oxycblt.auxio.util.collectImmediately
+import org.oxycblt.musikr.Album
+import org.oxycblt.musikr.Music
+import org.oxycblt.musikr.MusicParent
+import org.oxycblt.musikr.Song
 
-/**
- * A [Fragment] that shows a list of dialogue albums.
- * @author Auxio Project
- */
-class DialogAlbumsFragment : Fragment() {
-    private var _binding: FragmentDialogAlbumsBinding? = null
-    private val binding: FragmentDialogAlbumsBinding get() = _binding!!
+/** Shows the list of movie dialog study albums. */
+@AndroidEntryPoint
+class DialogAlbumsFragment :
+    ListFragment<Album, FragmentDialogAlbumsBinding>(),
+    FastScrollRecyclerView.Listener,
+    FastScrollRecyclerView.PopupProvider {
 
-    override fun onCreateView(
-        inflater: LayoutInflater,
-        container: ViewGroup?,
+    private val homeModel: HomeViewModel by activityViewModels()
+    private val detailModel: DetailViewModel by activityViewModels()
+    override val listModel: ListViewModel by activityViewModels()
+    override val musicModel: MusicViewModel by activityViewModels()
+    override val playbackModel: PlaybackViewModel by activityViewModels()
+
+    private val albumAdapter = AlbumAdapter(this)
+    private val formatterSb = StringBuilder(64)
+    private val formatter = Formatter(formatterSb)
+
+    override fun onCreateBinding(inflater: LayoutInflater) =
+        FragmentDialogAlbumsBinding.inflate(inflater)
+
+    override fun onBindingCreated(
+        binding: FragmentDialogAlbumsBinding,
         savedInstanceState: Bundle?
-    ): View {
-        _binding = FragmentDialogAlbumsBinding.inflate(inflater)
-        return binding.root
+    ) {
+        super.onBindingCreated(binding, savedInstanceState)
+
+        binding.dialogAlbumsRecycler.apply {
+            adapter = albumAdapter
+            listener = this@DialogAlbumsFragment
+            popupProvider = this@DialogAlbumsFragment
+        }
+
+        collectImmediately(homeModel.dialogAlbumList, ::updateAlbums)
+        collectImmediately(listModel.selected, ::updateSelection)
+        collectImmediately(
+            playbackModel.song,
+            playbackModel.parent,
+            playbackModel.isPlaying,
+            ::updatePlayback)
     }
 
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        super.onViewCreated(view, savedInstanceState)
-        // 空列表页面，只显示占位文案
-        binding.dialogAlbumsRecycler.visibility = View.GONE
-        binding.dialogAlbumsEmpty.visibility = View.VISIBLE
+    override fun onDestroyBinding(binding: FragmentDialogAlbumsBinding) {
+        super.onDestroyBinding(binding)
+        binding.dialogAlbumsRecycler.apply {
+            adapter = null
+            listener = null
+            popupProvider = null
+        }
     }
 
-    override fun onDestroyView() {
-        super.onDestroyView()
-        _binding = null
+    override fun getPopup(pos: Int): String? {
+        val album = homeModel.dialogAlbumList.value.getOrNull(pos) ?: return null
+        return when (homeModel.albumSort.mode) {
+            is Sort.Mode.ByName -> album.name.thumb()
+            is Sort.Mode.ByArtist -> album.artists.firstOrNull()?.name?.thumb()
+            is Sort.Mode.ByDate -> album.dates?.run { min.resolve(requireContext()) }
+            is Sort.Mode.ByDuration -> album.durationMs.formatDurationMs(false)
+            is Sort.Mode.ByCount -> album.songs.size.toString()
+            is Sort.Mode.ByDateAdded -> {
+                val dateAddedMillis = album.addedMs
+                formatterSb.setLength(0)
+                DateUtils.formatDateRange(
+                        context,
+                        formatter,
+                        dateAddedMillis,
+                        dateAddedMillis,
+                        DateUtils.FORMAT_ABBREV_ALL)
+                    .toString()
+            }
+            else -> null
+        }
+    }
+
+    override fun onFastScrollingChanged(isFastScrolling: Boolean) {
+        homeModel.setFastScrolling(isFastScrolling)
+    }
+
+    override fun onRealClick(item: Album) {
+        detailModel.showAlbum(item)
+    }
+
+    override fun onOpenMenu(item: Album) {
+        listModel.openMenu(R.menu.album, item)
+    }
+
+    private fun updateAlbums(albums: List<Album>) {
+        val instructions = homeModel.dialogAlbumInstructions.consume()
+        albumAdapter.update(albums, instructions)
+        val binding = requireBinding()
+        binding.dialogAlbumsEmpty.isVisible = albums.isEmpty()
+        binding.dialogAlbumsRecycler.isVisible = albums.isNotEmpty()
+    }
+
+    private fun updateSelection(selection: List<Music>) {
+        albumAdapter.setSelected(selection.filterIsInstanceTo(mutableSetOf()))
+    }
+
+    private fun updatePlayback(song: Song?, parent: MusicParent?, isPlaying: Boolean) {
+        val album = (parent as? Album)?.takeIf { song?.album == it }
+        albumAdapter.setPlaying(album, isPlaying)
+    }
+
+    private class AlbumAdapter(private val listener: SelectableListListener<Album>) :
+        SelectionIndicatorAdapter<Album, AlbumViewHolder>(AlbumViewHolder.DIFF_CALLBACK) {
+
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) = AlbumViewHolder.from(parent)
+
+        override fun onBindViewHolder(holder: AlbumViewHolder, position: Int) {
+            holder.bind(getItem(position), listener)
+        }
     }
 }
