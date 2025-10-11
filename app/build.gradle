@@ -138,6 +138,9 @@ dependencies {
     implementation project(":media-lib-exoplayer")
     implementation project(":media-lib-decoder-ffmpeg")
 
+    // Media processing
+    implementation 'com.arthenica:ffmpeg-kit-full:6.0-2'
+
     // Image loading
     implementation 'io.coil-kt.coil3:coil-core:3.3.0'
 

@@ -121,6 +121,18 @@
     <string name="lbl_sort_dsc">Descending</string>
 
     <string name="action_show_learning_albums">仅显示学习专辑</string>
+    <string name="action_import_dialog_album">导入电影对话</string>
+    <string name="msg_dialog_import_preparing">正在准备视频…</string>
+    <string name="msg_dialog_import_reading_subtitles">正在读取字幕…</string>
+    <string name="msg_dialog_import_generating_audio">已检测到 %1$d 句台词，正在生成音频…</string>
+    <string name="msg_dialog_import_generating_track">正在生成第 %1$d/%2$d 句台词…</string>
+    <string name="msg_dialog_import_writing_manifest">正在写入专辑信息…</string>
+    <string name="msg_dialog_import_finalizing">正在完成导入…</string>
+    <string name="msg_dialog_import_success">成功从“%2$s”生成 %1$d 条台词音频。</string>
+    <string name="msg_dialog_import_failed">导入失败：%1$s</string>
+    <string name="msg_dialog_import_failed_generic">导入过程中出现未知错误</string>
+    <string name="msg_dialog_import_in_progress">正在导入电影，请稍候…</string>
+    <string name="msg_dialog_import_choose_subtitle">请选择字幕文件（如需使用内嵌字幕，可点“取消”跳过）。</string>
 
     <string name="lbl_playback">Now playing</string>
     <string name="lbl_equalizer">Equalizer</string>
