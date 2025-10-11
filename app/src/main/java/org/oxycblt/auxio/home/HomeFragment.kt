@@ -174,6 +174,7 @@ class HomeFragment :
         collect(homeModel.recreateTabs.flow, ::handleRecreate)
         collect(homeModel.chooseMusicLocations.flow, ::handleChooseFolders)
         collectImmediately(homeModel.currentTabType, ::updateCurrentTab)
+        collectImmediately(homeModel.showDialogAlbumsOnly, ::updateDialogOnlyMenu)
         collect(detailModel.toShow.flow, ::handleShow)
         collect(listModel.menu.flow, ::handleMenu)
         collectImmediately(listModel.selected, ::updateSelection)
@@ -234,9 +235,13 @@ class HomeFragment :
                         MusicType.ARTISTS -> HomeFragmentDirections.sortArtists()
                         MusicType.GENRES -> HomeFragmentDirections.sortGenres()
                         MusicType.PLAYLISTS -> HomeFragmentDirections.sortPlaylists()
-                        MusicType.DIALOG_ALBUMS -> HomeFragmentDirections.sortAlbums() // 暂时使用专辑排序
+                        MusicType.DIALOG_ALBUMS -> HomeFragmentDirections.sortAlbums()
                     }
                 findNavController().navigateSafe(directions)
+                true
+            }
+            R.id.action_show_learning_albums -> {
+                homeModel.toggleDialogAlbumFilter()
                 true
             }
             else -> {
@@ -286,6 +291,17 @@ class HomeFragment :
                 MusicType.PLAYLISTS -> R.id.home_playlist_recycler
                 MusicType.DIALOG_ALBUMS -> R.id.dialog_albums_recycler
             }
+
+        binding.homeNormalToolbar.menu
+            .findItem(R.id.action_show_learning_albums)
+            ?.isVisible = tabType == MusicType.ALBUMS
+    }
+
+    private fun updateDialogOnlyMenu(showOnly: Boolean) {
+        val binding = requireBinding()
+        binding.homeNormalToolbar.menu
+            .findItem(R.id.action_show_learning_albums)
+            ?.isChecked = showOnly
     }
 
     private fun handleRecreate(recreate: Unit?) {

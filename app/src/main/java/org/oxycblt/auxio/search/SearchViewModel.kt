@@ -197,7 +197,7 @@ constructor(
             MusicType.ARTISTS -> R.id.option_filter_artists
             MusicType.GENRES -> R.id.option_filter_genres
             MusicType.PLAYLISTS -> R.id.option_filter_playlists
-            MusicType.DIALOG_ALBUMS -> R.id.option_filter_albums // 暂时使用专辑过滤选项
+            MusicType.DIALOG_ALBUMS -> R.id.option_filter_albums
             // Null maps to filtering nothing.
             null -> R.id.option_filter_all
         }

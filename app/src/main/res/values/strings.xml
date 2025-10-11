@@ -82,6 +82,7 @@
     <string name="lbl_genres">Genres</string>
     
     <string name="lbl_dialog_albums">台词专辑</string>
+    <string name="lbl_learning_badge">学习</string>
 
     <string name="lbl_playlist">Playlist</string>
     <string name="lbl_playlists">Playlists</string>
@@ -118,6 +119,8 @@
     <string name="lbl_sort_direction">Direction</string>
     <string name="lbl_sort_asc">Ascending</string>
     <string name="lbl_sort_dsc">Descending</string>
+
+    <string name="action_show_learning_albums">仅显示学习专辑</string>
 
     <string name="lbl_playback">Now playing</string>
     <string name="lbl_equalizer">Equalizer</string>
@@ -214,6 +217,7 @@
     </string>
     <string name="lng_empty_songs">Your songs will show up here.</string>
     <string name="lng_empty_albums">Your albums will show up here.</string>
+    <string name="lng_empty_dialog_albums">生成一张电影学习专辑后会显示在这里。</string>
     <string name="lng_empty_artists">Your artists will show up here.</string>
     <string name="lng_empty_genres">Your genres will show up here.</string>
     <string name="lng_empty_playlists">Your playlists will show up here.</string>

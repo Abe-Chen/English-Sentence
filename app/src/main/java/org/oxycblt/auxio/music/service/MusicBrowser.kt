@@ -99,6 +99,7 @@ private constructor(
         val music =
             when (type) {
                 MusicType.ALBUMS -> library.albums
+                MusicType.DIALOG_ALBUMS -> homeGenerator.dialogAlbums()
                 MusicType.ARTISTS -> library.artists
                 MusicType.GENRES -> library.genres
                 MusicType.PLAYLISTS -> library.playlists
@@ -199,10 +200,11 @@ private constructor(
                 when (node.type) {
                     MusicType.SONGS -> homeGenerator.songs().map { it.toMediaItem(context) }
                     MusicType.ALBUMS -> homeGenerator.albums().map { it.toMediaItem(context) }
+                    MusicType.DIALOG_ALBUMS ->
+                        homeGenerator.dialogAlbums().map { it.toMediaItem(context) }
                     MusicType.ARTISTS -> homeGenerator.artists().map { it.toMediaItem(context) }
                     MusicType.GENRES -> homeGenerator.genres().map { it.toMediaItem(context) }
                     MusicType.PLAYLISTS -> homeGenerator.playlists().map { it.toMediaItem(context) }
-                    MusicType.DIALOG_ALBUMS -> emptyList() // 暂时返回空列表
                 }
         }
 
