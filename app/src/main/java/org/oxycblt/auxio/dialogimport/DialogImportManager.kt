@@ -122,6 +122,14 @@ constructor(
                 val scanPaths = audioScanPaths + albumJson.absolutePath
                 val mimeTypes =
                     audioScanPaths.map { "audio/mp4" } + "application/json"
+                if (scanPaths.isNotEmpty()) {
+                    MediaScannerConnection.scanFile(
+                        context,
+                        scanPaths.toTypedArray(),
+                        mimeTypes.toTypedArray(),
+                        null,
+                    )
+                }
                 MediaScannerConnection.scanFile(
                     context,
                     scanPaths.toTypedArray(),
@@ -173,6 +181,14 @@ constructor(
         val subtitleFile = File.createTempFile("dialog_embedded", ".srt", context.cacheDir)
         val session =
             FFmpegKit.execute(
+                "-y",
+                "-i",
+                videoFile.absolutePath,
+                "-map",
+                "0:$streamIndex",
+                "-c:s",
+                "srt",
+                subtitleFile.absolutePath,
                 arrayOf(
                     "-y",
                     "-i",
@@ -215,6 +231,8 @@ constructor(
             val duration = cue.endMs - cue.startMs
             val tempFile = File.createTempFile("dialog_track", ".m4a", context.cacheDir)
 
+            val session =
+                FFmpegKit.execute(
             val command =
                 arrayOf(
                     "-y",
