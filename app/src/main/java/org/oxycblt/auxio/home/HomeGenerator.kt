@@ -19,6 +19,7 @@
 package org.oxycblt.auxio.home
 
 import javax.inject.Inject
+import org.oxycblt.auxio.dialogalbums.isDialogStudy
 import org.oxycblt.auxio.home.tabs.Tab
 import org.oxycblt.auxio.list.ListSettings
 import org.oxycblt.auxio.list.adapter.UpdateInstructions
@@ -41,6 +42,8 @@ interface HomeGenerator {
     fun songs(): List<Song>
 
     fun albums(): List<Album>
+
+    fun dialogAlbums(): List<Album>
 
     fun artists(): List<Artist>
 
@@ -105,6 +108,7 @@ private class HomeGeneratorImpl(
     override fun onAlbumSortChanged() {
         super.onAlbumSortChanged()
         invalidator.invalidateMusic(MusicType.ALBUMS, UpdateInstructions.Replace(0))
+        invalidator.invalidateMusic(MusicType.DIALOG_ALBUMS, UpdateInstructions.Replace(0))
     }
 
     override fun onArtistSortChanged() {
@@ -132,6 +136,7 @@ private class HomeGeneratorImpl(
             // Applying the preferred sorting to them.
             invalidator.invalidateMusic(MusicType.SONGS, UpdateInstructions.Diff)
             invalidator.invalidateMusic(MusicType.ALBUMS, UpdateInstructions.Diff)
+            invalidator.invalidateMusic(MusicType.DIALOG_ALBUMS, UpdateInstructions.Diff)
             invalidator.invalidateMusic(MusicType.ARTISTS, UpdateInstructions.Diff)
             invalidator.invalidateMusic(MusicType.GENRES, UpdateInstructions.Diff)
         }
@@ -155,6 +160,12 @@ private class HomeGeneratorImpl(
 
     override fun albums() =
         musicRepository.library?.let { listSettings.albumSort.albums(it.albums) } ?: emptyList()
+
+    override fun dialogAlbums() =
+        musicRepository.library?.let { library ->
+            val dialogAlbums = library.albums.filter { it.isDialogStudy() }
+            listSettings.albumSort.albums(dialogAlbums)
+        } ?: emptyList()
 
     override fun artists() =
         musicRepository.library?.let { deviceLibrary ->

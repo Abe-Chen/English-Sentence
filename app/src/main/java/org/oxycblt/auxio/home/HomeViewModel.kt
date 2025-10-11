@@ -84,6 +84,21 @@ constructor(
     val albumSort: Sort
         get() = listSettings.albumSort
 
+    private val _dialogAlbumList = MutableStateFlow(listOf<Album>())
+    /** A list of dialog [Album]s generated from movie scripts. */
+    val dialogAlbumList: StateFlow<List<Album>>
+        get() = _dialogAlbumList
+
+    private val _dialogAlbumInstructions = MutableEvent<UpdateInstructions>()
+    /** Instructions for how to update [dialogAlbumList] in the UI. */
+    val dialogAlbumInstructions: Event<UpdateInstructions>
+        get() = _dialogAlbumInstructions
+
+    private val _showDialogAlbumsOnly = MutableStateFlow(false)
+    /** Whether the standard album tab should only show dialog learning albums. */
+    val showDialogAlbumsOnly: StateFlow<Boolean>
+        get() = _showDialogAlbumsOnly
+
     private val _artistList = MutableStateFlow(listOf<Artist>())
     /**
      * A list of [Artist]s, sorted by the preferred [Sort], to be shown in the home view. Note that
@@ -188,7 +203,12 @@ constructor(
             }
             MusicType.ALBUMS -> {
                 _albumInstructions.put(instructions)
-                _albumList.value = homeGenerator.albums()
+                _albumList.value =
+                    if (_showDialogAlbumsOnly.value) {
+                        homeGenerator.dialogAlbums()
+                    } else {
+                        homeGenerator.albums()
+                    }
             }
             MusicType.ARTISTS -> {
                 _artistInstructions.put(instructions)
@@ -203,7 +223,8 @@ constructor(
                 _playlistList.value = homeGenerator.playlists()
             }
             MusicType.DIALOG_ALBUMS -> {
-                // 暂时不做任何操作，因为我们目前只显示空列表
+                _dialogAlbumInstructions.put(instructions)
+                _dialogAlbumList.value = homeGenerator.dialogAlbums()
             }
         }
     }
@@ -229,6 +250,19 @@ constructor(
      */
     fun applyAlbumSort(sort: Sort) {
         listSettings.albumSort = sort
+    }
+
+    /** Toggle whether the album tab only shows dialog study albums. */
+    fun toggleDialogAlbumFilter() {
+        val shouldShowOnlyDialog = !_showDialogAlbumsOnly.value
+        _showDialogAlbumsOnly.value = shouldShowOnlyDialog
+        _albumInstructions.put(UpdateInstructions.Replace(0))
+        _albumList.value =
+            if (shouldShowOnlyDialog) {
+                homeGenerator.dialogAlbums()
+            } else {
+                homeGenerator.albums()
+            }
     }
 
     /**
