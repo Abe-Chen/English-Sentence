@@ -130,6 +130,12 @@ constructor(
                         null,
                     )
                 }
+                MediaScannerConnection.scanFile(
+                    context,
+                    scanPaths.toTypedArray(),
+                    mimeTypes.toTypedArray(),
+                    null,
+                )
 
                 DialogImportResult(
                     albumTitle = albumTitle,
@@ -183,6 +189,16 @@ constructor(
                 "-c:s",
                 "srt",
                 subtitleFile.absolutePath,
+                arrayOf(
+                    "-y",
+                    "-i",
+                    videoFile.absolutePath,
+                    "-map",
+                    "0:$streamIndex",
+                    "-c:s",
+                    "srt",
+                    subtitleFile.absolutePath,
+                ),
             )
         if (!ReturnCode.isSuccess(session.returnCode)) {
             L.w(
@@ -217,6 +233,8 @@ constructor(
 
             val session =
                 FFmpegKit.execute(
+            val command =
+                arrayOf(
                     "-y",
                     "-i",
                     videoFile.absolutePath,
@@ -249,6 +267,8 @@ constructor(
                     "track=${index + 1}",
                     tempFile.absolutePath,
                 )
+
+            val session = FFmpegKit.execute(command)
             if (!ReturnCode.isSuccess(session.returnCode)) {
                 tempFile.delete()
                 throw DialogImportException(
