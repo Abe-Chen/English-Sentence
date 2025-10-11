@@ -30,6 +30,8 @@ import org.oxycblt.auxio.databinding.ItemSongBinding
 import org.oxycblt.auxio.list.BasicHeader
 import org.oxycblt.auxio.list.PlainDivider
 import org.oxycblt.auxio.list.SelectableListListener
+import androidx.core.view.isVisible
+import org.oxycblt.auxio.dialogalbums.isDialogStudy
 import org.oxycblt.auxio.list.adapter.SelectionIndicatorAdapter
 import org.oxycblt.auxio.list.adapter.SimpleDiffCallback
 import org.oxycblt.auxio.music.areNamesTheSame
@@ -112,6 +114,7 @@ class AlbumViewHolder private constructor(private val binding: ItemParentBinding
         binding.parentImage.bind(album)
         binding.parentName.text = album.name.resolve(binding.context)
         binding.parentInfo.text = album.artists.resolveNames(binding.context)
+        binding.parentLearningBadge.isVisible = album.isDialogStudy()
     }
 
     override fun updatePlayingIndicator(isActive: Boolean, isPlaying: Boolean) {

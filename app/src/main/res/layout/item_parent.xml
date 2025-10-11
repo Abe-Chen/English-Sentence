@@ -32,6 +32,22 @@
         tools:text="Artist" />
 
     <TextView
+        android:id="@+id/parent_learning_badge"
+        style="@style/Widget.Auxio.TextView.Item.Secondary"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="@dimen/spacing_small"
+        android:background="@drawable/bg_learning_badge"
+        android:paddingHorizontal="@dimen/spacing_small"
+        android:paddingVertical="@dimen/spacing_tiny"
+        android:text="@string/lbl_learning_badge"
+        android:textAppearance="@style/TextAppearance.Auxio.LabelSmall"
+        android:textColor="?attr/colorOnPrimaryContainer"
+        android:visibility="gone"
+        app:layout_constraintEnd_toStartOf="@+id/parent_menu"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <TextView
         android:id="@+id/parent_info"
         style="@style/Widget.Auxio.TextView.Item.Secondary"
         android:layout_width="0dp"
