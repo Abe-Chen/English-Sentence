@@ -21,8 +21,6 @@ package org.oxycblt.auxio.dialogimport
 import android.content.ContentResolver
 import android.content.ContentValues
 import android.content.Context
-import android.content.Context
-import android.content.ContentValues
 import android.media.MediaScannerConnection
 import android.net.Uri
 import android.os.Build
@@ -39,14 +37,11 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import kotlin.text.Charsets
 import org.json.JSONArray
 import org.json.JSONObject
 import org.oxycblt.auxio.R
-import org.json.JSONArray
-import org.json.JSONObject
+import timber.log.Timber
 import kotlin.text.Charsets
-import timber.log.Timber as L
 
 private const val DIALOG_STUDY_ALBUM_ARTIST = "Dialog Study"
 private const val DIALOG_STUDY_GENRE = "DialogStudy"
@@ -89,14 +84,12 @@ constructor(
                         ?: throw DialogImportException(
                             context.getString(R.string.error_dialog_import_album_title),
                         )
-                        ?: throw DialogImportException("Unable to determine album title.")
 
                 val subtitleFile =
                     providedSubtitle
                         ?: extractEmbeddedSubtitle(tempVideo).also { extractedSubtitle = it }
                         ?: throw DialogImportException(
                             context.getString(R.string.error_dialog_import_missing_subtitle),
-                            "The selected video does not contain embedded subtitles and no subtitle file was provided.",
                         )
 
                 onProgress(DialogImportProgress.ReadingSubtitles)
@@ -107,7 +100,6 @@ constructor(
                     throw DialogImportException(
                         context.getString(R.string.error_dialog_import_empty_subtitle),
                     )
-                    throw DialogImportException("Subtitle file did not contain any cues.")
                 }
 
                 val destination = prepareAlbumDirectory(albumTitle)
@@ -133,9 +125,9 @@ constructor(
 
                 val audioScanPaths = tracks.filter { it.needsScan }.map { it.file.absolutePath }
                 val scanPaths = audioScanPaths + albumJson.absolutePath
-                val mimeTypes =
-                    audioScanPaths.map { "audio/mp4" } + "application/json"
                 if (scanPaths.isNotEmpty()) {
+                    val mimeTypes =
+                        audioScanPaths.map { "audio/mp4" } + "application/json"
                     MediaScannerConnection.scanFile(
                         context,
                         scanPaths.toTypedArray(),
@@ -143,12 +135,6 @@ constructor(
                         null,
                     )
                 }
-                MediaScannerConnection.scanFile(
-                    context,
-                    scanPaths.toTypedArray(),
-                    mimeTypes.toTypedArray(),
-                    null,
-                )
 
                 DialogImportResult(
                     albumTitle = albumTitle,
@@ -173,7 +159,8 @@ constructor(
                 throw DialogImportException(
                     context.getString(R.string.error_dialog_import_create_root),
                 )
-                throw DialogImportException("Unable to create EnglishDialog music directory.")
+            } else {
+                Timber.w("Failed to create dialog root directory; relying on MediaStore")
             }
         }
 
@@ -183,7 +170,11 @@ constructor(
                 throw DialogImportException(
                     context.getString(R.string.error_dialog_import_create_album_dir),
                 )
-                throw DialogImportException("Unable to create album destination directory.")
+            } else {
+                Timber.w(
+                    "Failed to create album directory for %s; relying on MediaStore",
+                    sanitizedAlbum,
+                )
             }
         }
         val relativePath = "${Environment.DIRECTORY_MUSIC}/EnglishDialog/$sanitizedAlbum"
@@ -200,15 +191,7 @@ constructor(
         val subtitleFile = File.createTempFile("dialog_embedded", ".srt", context.cacheDir)
         val session =
             FFmpegKit.execute(
-                "-y",
-                "-i",
-                videoFile.absolutePath,
-                "-map",
-                "0:$streamIndex",
-                "-c:s",
-                "srt",
-                subtitleFile.absolutePath,
-                arrayOf(
+                *arrayOf(
                     "-y",
                     "-i",
                     videoFile.absolutePath,
@@ -220,9 +203,9 @@ constructor(
                 ),
             )
         if (!ReturnCode.isSuccess(session.returnCode)) {
-            L.w(
+            Timber.w(
                 "Failed to extract embedded subtitles: %s",
-                session.failStackTrace,
+                session.failStackTrace ?: "unknown",
             )
             subtitleFile.delete()
             return null
@@ -250,8 +233,6 @@ constructor(
             val duration = cue.endMs - cue.startMs
             val tempFile = File.createTempFile("dialog_track", ".m4a", context.cacheDir)
 
-            val session =
-                FFmpegKit.execute(
             val command =
                 arrayOf(
                     "-y",
@@ -286,29 +267,18 @@ constructor(
                     "track=${index + 1}",
                     tempFile.absolutePath,
                 )
-            if (!ReturnCode.isSuccess(session.returnCode)) {
-                tempFile.delete()
-                L.e(
-                    "FFmpeg failed while creating dialog track %d: %s",
-                    index + 1,
-                    session.failStackTrace ?: "unknown",
-                )
-                throw DialogImportException(
-                    context.getString(R.string.error_dialog_import_track_failed, index + 1),
 
-            val session = FFmpegKit.execute(command)
+            val session = FFmpegKit.execute(*command)
             if (!ReturnCode.isSuccess(session.returnCode)) {
                 tempFile.delete()
                 throw DialogImportException(
-                    buildString {
-                        append("Failed to generate dialog track ${index + 1}.")
-                        session.failStackTrace?.let { stack ->
-                            append(' ')
-                            append(stack)
-                        }
-                    }
+                    context.getString(
+                        R.string.error_dialog_import_track_failed,
+                        index + 1,
+                    ),
                 )
             }
+
             val audioUri =
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                     val contentValues =
@@ -318,7 +288,10 @@ constructor(
                             put(MediaStore.MediaColumns.RELATIVE_PATH, destination.relativePath)
                             put(MediaStore.MediaColumns.IS_PENDING, 1)
                             put(MediaStore.Audio.AudioColumns.ALBUM, albumTitle)
-                            put(MediaStore.Audio.AudioColumns.ALBUM_ARTIST, DIALOG_STUDY_ALBUM_ARTIST)
+                            put(
+                                MediaStore.Audio.AudioColumns.ALBUM_ARTIST,
+                                DIALOG_STUDY_ALBUM_ARTIST,
+                            )
                             put(MediaStore.Audio.AudioColumns.ARTIST, DIALOG_STUDY_ALBUM_ARTIST)
                             put(MediaStore.Audio.AudioColumns.TITLE, titleMetadata)
                             put(MediaStore.Audio.AudioColumns.TRACK, index + 1)
@@ -328,16 +301,16 @@ constructor(
                         resolver.insert(
                             MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
                             contentValues,
-                        ) ?: run {
-                            tempFile.delete()
-                            throw DialogImportException(
-                                context.getString(
-                                    R.string.error_dialog_import_storage_reservation,
-                                    index + 1,
-                                ),
-                                "Failed to reserve storage for dialog track ${index + 1}.",
-                            )
-                        }
+                        )
+                            ?: run {
+                                tempFile.delete()
+                                throw DialogImportException(
+                                    context.getString(
+                                        R.string.error_dialog_import_storage_reservation,
+                                        index + 1,
+                                    ),
+                                )
+                            }
                     try {
                         resolver.openOutputStream(uri, "w")?.use { output ->
                             tempFile.inputStream().use { input -> input.copyTo(output) }
@@ -348,13 +321,12 @@ constructor(
                                     index + 1,
                                 ),
                             )
-                        } ?: throw DialogImportException(
-                            "Unable to open output stream for dialog track ${index + 1}.",
-                        )
 
                         resolver.update(
                             uri,
-                            ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING, 0) },
+                            ContentValues().apply {
+                                put(MediaStore.MediaColumns.IS_PENDING, 0)
+                            },
                             null,
                             null,
                         )
@@ -366,13 +338,6 @@ constructor(
                                 R.string.error_dialog_import_save_track,
                                 index + 1,
                             ),
-                            buildString {
-                                append("Failed to save dialog track ${index + 1}.")
-                                e.message?.let { message ->
-                                    append(' ')
-                                    append(message)
-                                }
-                            },
                             e,
                         )
                     }
@@ -387,18 +352,12 @@ constructor(
                                 R.string.error_dialog_import_save_track,
                                 index + 1,
                             ),
-                            buildString {
-                                append("Failed to save dialog track ${index + 1}.")
-                                e.message?.let { message ->
-                                    append(' ')
-                                    append(message)
-                                }
-                            },
                             e,
                         )
                     }
                     Uri.fromFile(trackFile)
                 }
+
             tempFile.delete()
             val needsScan = Build.VERSION.SDK_INT < Build.VERSION_CODES.Q
             tracks += GeneratedTrack(trackFile, cue, index + 1, audioUri, needsScan)
@@ -438,16 +397,16 @@ constructor(
                     put(MediaStore.MediaColumns.RELATIVE_PATH, destination.relativePath)
                     put(MediaStore.MediaColumns.IS_PENDING, 1)
                 }
-                val uri =
-                    resolver.insert(
-                        MediaStore.Files.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY),
-                        values,
+            val uri =
+                resolver.insert(
+                    MediaStore.Files.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY),
+                    values,
+                )
+                    ?: throw DialogImportException(
+                        context.getString(
+                            R.string.error_dialog_import_manifest_media_store,
+                        ),
                     )
-                        ?: throw DialogImportException(
-                            context.getString(
-                                R.string.error_dialog_import_manifest_media_store,
-                            ),
-                        )
             try {
                 resolver.openOutputStream(uri, "w")?.use { output ->
                     output.write(jsonString.toByteArray(Charsets.UTF_8))
@@ -457,15 +416,6 @@ constructor(
                             R.string.error_dialog_import_manifest_output_stream,
                         ),
                     )
-            val uri =
-                resolver.insert(
-                    MediaStore.Files.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY),
-                    values,
-                ) ?: throw DialogImportException("Unable to create album manifest in media store.")
-            try {
-                resolver.openOutputStream(uri, "w")?.use { output ->
-                    output.write(jsonString.toByteArray(Charsets.UTF_8))
-                } ?: throw DialogImportException("Unable to open album manifest output stream.")
 
                 resolver.update(
                     uri,
@@ -479,11 +429,10 @@ constructor(
                     context.getString(R.string.error_dialog_import_manifest_write),
                     e,
                 )
-                throw DialogImportException("Failed to write album manifest.", e)
             }
         } else {
             val jsonFile = File(destination.directory, "album.json")
-            jsonFile.parentFile?.takeIf { it?.exists() == false }?.mkdirs()
+            jsonFile.parentFile?.takeIf { !it.exists() }?.mkdirs()
             jsonFile.writer().use { writer -> writer.write(jsonString) }
         }
 
@@ -497,15 +446,16 @@ constructor(
     ): File {
         val extension = resolver.getExtension(uri)
         val tempFile = File.createTempFile(prefix, extension, context.cacheDir)
-        resolver.openInputStream(uri)?.use { input ->
+        val inputStream =
+            resolver.openInputStream(uri)
+                ?: throw DialogImportException(
+                    context.getString(R.string.error_dialog_import_open_source, uri),
+                )
+        inputStream.use { input ->
             tempFile.outputStream().use { output ->
                 input.copyTo(output)
             }
         }
-            ?: throw DialogImportException(
-                context.getString(R.string.error_dialog_import_open_source, uri),
-            )
-        } ?: throw DialogImportException("Unable to open source uri: $uri")
         return tempFile
     }
 
