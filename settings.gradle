@@ -20,9 +20,56 @@ dependencyResolutionManagement {
     }
 }
 
+def initializeSubmodule(String path, String friendlyName) {
+    def submoduleDir = file(path)
+    if (submoduleDir.exists() && submoduleDir.list()?.length) {
+        return
+    }
+
+    def command = ["git", "submodule", "update", "--init", "--recursive", path]
+    try {
+        logger.lifecycle("Initializing ${friendlyName} submodule via `${command.join(' ')}`")
+        def process = command.execute(null, rootDir)
+        def stdout = new StringBuffer()
+        def stderr = new StringBuffer()
+        process.consumeProcessOutput(stdout, stderr)
+        def exitCode = process.waitFor()
+        if (exitCode != 0) {
+            throw new GradleException("Git returned exit code ${exitCode} while fetching ${friendlyName} submodule.\n" +
+                    stderr.toString())
+        }
+    } catch (Exception exception) {
+        throw new GradleException("Failed to initialize the ${friendlyName} submodule located at ${path}.\n" +
+                "Please run `git submodule update --init --recursive ${path}` manually and re-run the build.", exception)
+    }
+
+    if (!submoduleDir.exists() || !(submoduleDir.list()?.length)) {
+        throw new GradleException("The ${friendlyName} submodule (${path}) is still empty after attempting initialization.\n" +
+                "Ensure the repository has access to its Git submodules and try again.")
+    }
+}
+
+gradle.ext.auxioMediaVendored = false
+gradle.ext.auxioMediaVersion = '1.4.0'
+
+def mediaSubmoduleInitialized = false
+try {
+    initializeSubmodule('media', 'Media3 vendor')
+    mediaSubmoduleInitialized = true
+} catch (GradleException exception) {
+    logger.lifecycle('Unable to initialize media submodule: ' + exception.message)
+}
+
 gradle.ext.androidxMediaModulePrefix = 'media-'
 gradle.ext.androidxMediaProjectName = 'media-'
-apply from: file("media/core_settings.gradle")
+
+def mediaSettings = file("media/core_settings.gradle")
+if (mediaSubmoduleInitialized && mediaSettings.exists()) {
+    gradle.ext.auxioMediaVendored = true
+    apply from: mediaSettings
+} else {
+    logger.lifecycle('Media3 vendor submodule unavailable, falling back to Maven artifacts')
+}
 
 rootProject.name = "Auxio"
 include ':app'

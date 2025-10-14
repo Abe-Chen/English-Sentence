@@ -1,4 +1,4 @@
-import org.apache.tools.ant.taskdefs.condition.Os
+import org.gradle.process.ExecSpec
 
 plugins {
     id 'com.android.library'
@@ -83,22 +83,58 @@ dependencies {
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.6.1'
 }
 
-task assembleTaglib(type: Exec) {
-    def jniDir = "$projectDir/src/main/cpp"
-    def libs = new File("$jniDir/taglib/pkg")
-    if (libs.exists()) {
-        commandLine "true"
-        return
+def taglibDir = file("${projectDir}/src/main/cpp/taglib")
+
+tasks.register("assembleTaglib") {
+    group = "build"
+    description = "Builds the vendored TagLib static libraries required by Musikr."
+
+    doLast {
+        def pkgDir = file("${taglibDir}/pkg")
+        if (pkgDir.exists()) {
+            logger.lifecycle("TagLib packages already present at ${pkgDir}, skipping rebuild.")
+            return
+        }
+
+        def cmakeFile = file("${taglibDir}/CMakeLists.txt")
+        if (!cmakeFile.exists()) {
+            def command = ["git", "submodule", "update", "--init", "--recursive", "musikr/src/main/cpp/taglib"]
+            try {
+                logger.lifecycle("Initializing TagLib submodule via `${command.join(' ')}`")
+                project.exec { ExecSpec spec ->
+                    spec.workingDir = rootDir
+                    spec.commandLine command
+                }
+            } catch (Exception exception) {
+                throw new GradleException("Failed to initialize the TagLib submodule.\n" +
+                        "Please run `git submodule update --init --recursive musikr/src/main/cpp/taglib` manually and re-run the build.", exception)
+            }
+        }
+
+        if (!cmakeFile.exists()) {
+            throw new GradleException("Missing TagLib sources in ${taglibDir}. Ensure the git submodule is available.")
+        }
+
+        def ndkDir = android.ndkDirectory?.absolutePath
+        if (!ndkDir) {
+            throw new GradleException("Android NDK path is not configured. Set `ndkVersion` or install the requested NDK.")
+        }
+
+        project.exec {
+            commandLine "sh", "${projectDir}/src/main/cpp/build_taglib.sh", "${projectDir}/src/main/cpp", ndkDir
+        }
     }
-    commandLine "sh", "-c", "$jniDir/build_taglib.sh $jniDir $android.ndkDirectory"
 }
 
 afterEvaluate {
-    preDebugBuild.dependsOn assembleTaglib
-    preReleaseBuild.dependsOn assembleTaglib
+    tasks.matching { it.name.startsWith("pre") && it.name.endsWith("Build") }.configureEach {
+        dependsOn tasks.named("assembleTaglib")
+    }
 }
 
-clean {
-    delete "$projectDir/src/main/cpp/taglib/pkg"
-    delete "$projectDir/src/main/cpp/taglib/build"
+tasks.named("clean") {
+    doLast {
+        delete "${projectDir}/src/main/cpp/taglib/pkg"
+        delete "${projectDir}/src/main/cpp/taglib/build"
+    }
 }

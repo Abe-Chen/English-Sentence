@@ -22,6 +22,7 @@ import android.content.Context
 import android.content.Intent
 import android.media.audiofx.AudioEffect
 import android.provider.OpenableColumns
+import android.os.Handler
 import androidx.annotation.OptIn
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
@@ -29,9 +30,11 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
-import androidx.media3.decoder.ffmpeg.FfmpegAudioRenderer
+import androidx.media3.common.audio.AudioProcessor
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.Renderer
 import androidx.media3.exoplayer.RenderersFactory
+import androidx.media3.exoplayer.audio.AudioRendererEventListener
 import androidx.media3.exoplayer.audio.DefaultAudioSink
 import androidx.media3.exoplayer.audio.MediaCodecAudioRenderer
 import androidx.media3.exoplayer.mediacodec.MediaCodecSelector
@@ -636,16 +639,20 @@ class ExoPlaybackStateHolder(
             // Since Auxio is a music player, only specify an audio renderer to save
             // battery/apk size/cache size]
             val audioRenderer = RenderersFactory { handler, _, audioListener, _, _ ->
-                arrayOf(
-                    FfmpegAudioRenderer(handler, audioListener, replayGainProcessor),
-                    MediaCodecAudioRenderer(
-                        context,
-                        MediaCodecSelector.DEFAULT,
-                        handler,
-                        audioListener,
-                        DefaultAudioSink.Builder(context)
-                            .setAudioProcessors(arrayOf(replayGainProcessor))
-                            .build()))
+                val renderers =
+                    mutableListOf<Renderer>().apply {
+                        maybeCreateFfmpegRenderer(handler, audioListener)?.let(::add)
+                        add(
+                            MediaCodecAudioRenderer(
+                                context,
+                                MediaCodecSelector.DEFAULT,
+                                handler,
+                                audioListener,
+                                DefaultAudioSink.Builder(context)
+                                    .setAudioProcessors(arrayOf(replayGainProcessor))
+                                    .build()))
+                    }
+                renderers.toTypedArray()
             }
 
             val exoPlayer =
@@ -672,6 +679,31 @@ class ExoPlaybackStateHolder(
                 replayGainProcessor,
                 musicRepository,
                 imageSettings)
+        }
+
+        private fun maybeCreateFfmpegRenderer(
+            handler: Handler,
+            audioListener: AudioRendererEventListener?
+        ): Renderer? {
+            return try {
+                val rendererClass =
+                    Class.forName("androidx.media3.decoder.ffmpeg.FfmpegAudioRenderer")
+                val constructor =
+                    rendererClass.getConstructor(
+                        Handler::class.java,
+                        AudioRendererEventListener::class.java,
+                        Array<AudioProcessor>::class.java)
+                constructor.newInstance(
+                    handler,
+                    audioListener,
+                    arrayOf<AudioProcessor>(replayGainProcessor)) as Renderer
+            } catch (exception: ClassNotFoundException) {
+                L.i(exception, "FFmpeg extension not found, continuing without it")
+                null
+            } catch (exception: ReflectiveOperationException) {
+                L.w(exception, "Unable to instantiate FFmpeg extension renderer")
+                null
+            }
         }
     }
 
