@@ -20,10 +20,6 @@ dependencyResolutionManagement {
     }
 }
 
-gradle.ext.androidxMediaModulePrefix = 'media-'
-gradle.ext.androidxMediaProjectName = 'media-'
-apply from: file("media/core_settings.gradle")
-
 rootProject.name = "Auxio"
 include ':app'
 include ':musikr'
