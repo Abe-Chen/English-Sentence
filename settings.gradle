@@ -49,12 +49,28 @@ def initializeSubmodule(String path, String friendlyName) {
     }
 }
 
+gradle.ext.auxioMediaVendored = false
+gradle.ext.auxioMediaVersion = '1.4.0'
+
+def mediaSubmoduleInitialized = false
+try {
+    initializeSubmodule('media', 'Media3 vendor')
+    mediaSubmoduleInitialized = true
+} catch (GradleException exception) {
+    logger.lifecycle('Unable to initialize media submodule: ' + exception.message)
+}
 initializeSubmodule('media', 'Media3 vendor')
 
 gradle.ext.androidxMediaModulePrefix = 'media-'
 gradle.ext.androidxMediaProjectName = 'media-'
 
 def mediaSettings = file("media/core_settings.gradle")
+if (mediaSubmoduleInitialized && mediaSettings.exists()) {
+    gradle.ext.auxioMediaVendored = true
+    apply from: mediaSettings
+} else {
+    logger.lifecycle('Media3 vendor submodule unavailable, falling back to Maven artifacts')
+}
 if (!mediaSettings.exists()) {
     throw new GradleException("Missing media/core_settings.gradle. Ensure the Media3 vendor submodule is checked out.")
 }
