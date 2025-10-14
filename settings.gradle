@@ -59,6 +59,7 @@ try {
 } catch (GradleException exception) {
     logger.lifecycle('Unable to initialize media submodule: ' + exception.message)
 }
+initializeSubmodule('media', 'Media3 vendor')
 
 gradle.ext.androidxMediaModulePrefix = 'media-'
 gradle.ext.androidxMediaProjectName = 'media-'
@@ -70,6 +71,11 @@ if (mediaSubmoduleInitialized && mediaSettings.exists()) {
 } else {
     logger.lifecycle('Media3 vendor submodule unavailable, falling back to Maven artifacts')
 }
+if (!mediaSettings.exists()) {
+    throw new GradleException("Missing media/core_settings.gradle. Ensure the Media3 vendor submodule is checked out.")
+}
+
+apply from: mediaSettings
 
 rootProject.name = "Auxio"
 include ':app'
