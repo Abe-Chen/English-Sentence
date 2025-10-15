@@ -71,6 +71,7 @@ if (mediaSubmoduleInitialized && mediaSettings.exists()) {
     logger.lifecycle('Media3 vendor submodule unavailable, falling back to Maven artifacts')
 }
 
+void propagateMediaExtras(Project project) {
 def propagateMediaExtras = { project ->
     def extras = project.extensions.extraProperties
     extras.set('auxioMediaVendored', gradle.ext.auxioMediaVendored)
@@ -80,6 +81,16 @@ def propagateMediaExtras = { project ->
         project.ext.set('auxioMediaVendored', gradle.ext.auxioMediaVendored)
         project.ext.set('auxioMediaVersion', gradle.ext.auxioMediaVersion)
     }
+}
+
+gradle.settingsEvaluated {
+    gradle.rootProject { project ->
+        propagateMediaExtras(project)
+    }
+}
+
+gradle.beforeProject { project ->
+    propagateMediaExtras(project)
 gradle.beforeProject { project ->
     def extras = project.extensions.extraProperties
     extras.set('auxioMediaVendored', gradle.ext.auxioMediaVendored)
