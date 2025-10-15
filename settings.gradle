@@ -71,6 +71,9 @@ if (mediaSubmoduleInitialized && mediaSettings.exists()) {
     logger.lifecycle('Media3 vendor submodule unavailable, falling back to Maven artifacts')
 }
 
+gradle.beforeProject { project ->
+    project.extensions.extraProperties.set('auxioMediaVendored', gradle.ext.auxioMediaVendored)
+    project.extensions.extraProperties.set('auxioMediaVersion', gradle.ext.auxioMediaVersion)
 gradle.rootProject { project ->
     project.ext.auxioMediaVendored = gradle.ext.auxioMediaVendored
     project.ext.auxioMediaVersion = gradle.ext.auxioMediaVersion
