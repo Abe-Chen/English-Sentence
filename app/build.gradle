@@ -135,11 +135,12 @@ dependencies {
     // --- THIRD PARTY ---
 
     // ExoPlayer (vendored or Maven fallback)
-    if (rootProject.ext.auxioMediaVendored) {
+    def mediaVendored = rootProject.ext.has('auxioMediaVendored') ? rootProject.ext.auxioMediaVendored : false
+    if (mediaVendored) {
         implementation project(":media-lib-exoplayer")
         implementation project(":media-lib-decoder-ffmpeg")
     } else {
-        def media3Version = rootProject.ext.auxioMediaVersion
+        def media3Version = rootProject.ext.has('auxioMediaVersion') ? rootProject.ext.auxioMediaVersion : '1.4.0'
         implementation "androidx.media3:media3-exoplayer:${media3Version}"
         implementation "androidx.media3:media3-exoplayer-ffmpeg:${media3Version}"
     }
