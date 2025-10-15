@@ -84,6 +84,14 @@ def propagateMediaExtras = { project ->
 }
 
 gradle.settingsEvaluated {
+    propagateMediaExtras(gradle.rootProject)
+}
+
+gradle.beforeProject { project ->
+    propagateMediaExtras(project)
+}
+
+gradle.settingsEvaluated {
     gradle.rootProject { project ->
         propagateMediaExtras(project)
     }
