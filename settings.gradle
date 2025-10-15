@@ -83,6 +83,21 @@ gradle.rootProject { project ->
 
 gradle.beforeProject { project ->
     propagateMediaExtras(project)
+gradle.beforeProject { project ->
+    project.extensions.extraProperties.set('auxioMediaVendored', gradle.ext.auxioMediaVendored)
+    project.extensions.extraProperties.set('auxioMediaVersion', gradle.ext.auxioMediaVersion)
+}
+
+gradle.rootProject { project ->
+    project.extensions.extraProperties.set('auxioMediaVendored', gradle.ext.auxioMediaVendored)
+    project.extensions.extraProperties.set('auxioMediaVersion', gradle.ext.auxioMediaVersion)
+
+gradle.beforeProject { project ->
+    project.extensions.extraProperties.set('auxioMediaVendored', gradle.ext.auxioMediaVendored)
+    project.extensions.extraProperties.set('auxioMediaVersion', gradle.ext.auxioMediaVersion)
+gradle.rootProject { project ->
+    project.ext.auxioMediaVendored = gradle.ext.auxioMediaVendored
+    project.ext.auxioMediaVersion = gradle.ext.auxioMediaVersion
 }
 
 rootProject.name = "Auxio"
